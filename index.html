@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Baby Tracker</title>
+<meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fdf9f4" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Baby">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root{
+  --bg:#fdf9f4; --card:#ffffff; --ink:#33302c; --ink2:#8a8378; --line:#eee7dc;
+  --accent:#e2a13d; --accent-ink:#5c3d0a; --accent-soft:#fbf0dc;
+  --poop:#a9805b; --poop-soft:#f3e9e0; --pee:#5b9bd4; --pee-soft:#e4f0fa;
+  --good:#6aa87a; --bad:#cf6a5f; --sheet:#ffffff; --press:#f5eee3;
+  --shadow:0 10px 30px rgba(90,70,40,.10);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1c1917; --card:#26221f; --ink:#ece6dd; --ink2:#948c80; --line:#37322c;
+    --accent:#e2a13d; --accent-ink:#ffe9c4; --accent-soft:#3a3125;
+    --poop:#c39b76; --poop-soft:#352c24; --pee:#7cb4e4; --pee-soft:#22303c;
+    --good:#7dbd8d; --bad:#e08175; --sheet:#2b2723; --press:#332e29;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.4;
+  padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  min-height:100vh;
+}
+button{font-family:inherit;}
+.wrap{max-width:520px;margin:0 auto;padding:12px 16px 0;}
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 2px 6px;}
+.babyname{font-weight:700;font-size:20px;letter-spacing:.2px;}
+.syncchip{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);
+  background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink2);flex:0 0 auto;}
+.dot.ok{background:var(--good);} .dot.err{background:var(--bad);}
+.dot.sync{background:var(--accent);animation:pulse 1s infinite alternate;}
+@keyframes pulse{from{opacity:.4}to{opacity:1}}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:18px;margin-top:12px;}
+.lastfeed .label{font-size:12px;font-weight:700;letter-spacing:1.2px;color:var(--ink2);text-transform:uppercase;}
+.lf-main{display:flex;align-items:baseline;gap:10px;margin-top:6px;flex-wrap:wrap;}
+.lf-time{font-size:34px;font-weight:800;}
+.lf-side{font-size:15px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);
+  border-radius:999px;padding:4px 12px;}
+.lf-ago{color:var(--ink2);font-size:15px;margin-top:2px;}
+.lf-next{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);font-size:15px;color:var(--ink2);}
+.lf-next b{color:var(--ink);}
+.lf-day{font-size:13px;color:var(--ink2);margin-top:2px;}
+/* big buttons */
+.bigbtns{margin-top:14px;display:flex;flex-direction:column;gap:10px;}
+.btn-feed{width:100%;border:none;border-radius:20px;padding:20px;font-size:20px;font-weight:800;cursor:pointer;
+  background:var(--accent);color:#3a2803;box-shadow:var(--shadow);}
+.row2{display:flex;gap:10px;}
+.btn-poop,.btn-pee{flex:1;border:none;border-radius:20px;padding:18px 8px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:var(--shadow);}
+.btn-poop{background:var(--poop-soft);color:var(--poop);}
+.btn-pee{background:var(--pee-soft);color:var(--pee);}
+.btn-feed:active,.btn-poop:active,.btn-pee:active{transform:scale(.97);}
+button:disabled{opacity:.55;}
+/* recent */
+.recent{margin-top:16px;}
+.recent h3{font-size:12px;font-weight:700;letter-spacing:1.2px;color:var(--ink2);text-transform:uppercase;margin:0 4px 6px;}
+/* log rows */
+.dayhdr{display:flex;justify-content:space-between;align-items:baseline;margin:18px 4px 6px;}
+.dayhdr .d{font-weight:800;font-size:15px;}
+.dayhdr .c{font-size:12.5px;color:var(--ink2);}
+.evrow{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:11px 14px;margin-top:6px;cursor:pointer;}
+.evrow:active{background:var(--press);}
+.evrow .ic{font-size:20px;width:28px;text-align:center;flex:0 0 auto;}
+.evrow .t{font-weight:700;min-width:74px;}
+.evrow .what{color:var(--ink2);font-size:15px;flex:1;}
+.evrow .side{font-size:12.5px;font-weight:800;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:2px 9px;}
+/* summary */
+table.sum{width:100%;border-collapse:collapse;font-size:14.5px;}
+table.sum th{font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink2);font-weight:700;
+  text-align:right;padding:8px 6px;border-bottom:1px solid var(--line);}
+table.sum th:first-child{text-align:left;}
+table.sum td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
+table.sum td:first-child{text-align:left;font-weight:700;white-space:nowrap;}
+table.sum tr:last-child td{border-bottom:none;}
+.sub{color:var(--ink2);font-size:13px;}
+.statgrid{display:flex;gap:8px;margin-top:10px;}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 8px;text-align:center;box-shadow:var(--shadow);}
+.stat .n{font-size:24px;font-weight:800;}
+.stat .l{font-size:12px;color:var(--ink2);margin-top:2px;}
+/* settings */
+.set-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 2px;border-bottom:1px solid var(--line);}
+.set-item:last-child{border-bottom:none;}
+.set-item .lbl{font-weight:600;}
+.set-item .desc{font-size:13px;color:var(--ink2);margin-top:2px;}
+.set-btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:9px 14px;font-size:14.5px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.set-btn.primary{background:var(--accent);border-color:var(--accent);color:#3a2803;}
+.set-btn.danger{color:var(--bad);}
+input[type=text],input[type=datetime-local],textarea{
+  background:var(--bg);border:1px solid var(--line);border-radius:12px;color:var(--ink);
+  padding:11px 12px;font-size:16px;width:100%;font-family:inherit;}
+textarea{min-height:120px;resize:vertical;}
+/* tabs */
+.tabs{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:40;}
+.tab{flex:1;border:none;background:none;color:var(--ink2);font-size:11.5px;font-weight:600;
+  padding:9px 0 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.tab .ti{font-size:21px;line-height:1;}
+.tab.active{color:var(--accent-ink);}
+@media (prefers-color-scheme: dark){ .tab.active{color:var(--accent);} }
+/* sheets */
+.overlay{position:fixed;inset:0;background:rgba(20,15,8,.45);z-index:50;display:none;}
+.overlay.show{display:block;}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--sheet);z-index:60;
+  border-radius:22px 22px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  max-width:560px;margin:0 auto;display:none;box-shadow:0 -10px 40px rgba(0,0,0,.25);
+  max-height:88vh;overflow:auto;}
+.sheet.show{display:block;}
+.sheet h2{margin:2px 0 14px;font-size:19px;}
+.field{margin-top:14px;}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.seg{display:flex;gap:8px;}
+.seg button{flex:1;border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+  border-radius:14px;padding:14px 6px;font-size:16px;font-weight:700;cursor:pointer;position:relative;}
+.seg button.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink);}
+.seg .hint{display:block;font-size:10.5px;font-weight:700;letter-spacing:.5px;color:var(--accent-ink);opacity:.75;text-transform:uppercase;margin-top:2px;}
+.sheet-actions{display:flex;gap:10px;margin-top:20px;}
+.sheet-actions button{flex:1;border:none;border-radius:14px;padding:15px;font-size:16.5px;font-weight:700;cursor:pointer;}
+.sa-save{background:var(--accent);color:#3a2803;}
+.sa-cancel{background:var(--press);color:var(--ink);}
+.sa-del{background:none;border:1.5px solid var(--bad) !important;color:var(--bad);}
+.nowlink{font-size:13.5px;font-weight:700;color:var(--accent-ink);background:none;border:none;cursor:pointer;padding:6px;}
+@media (prefers-color-scheme: dark){ .nowlink{color:var(--accent);} .lf-side{color:var(--accent);} }
+/* toast */
+.toast{position:fixed;bottom:calc(86px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);border-radius:999px;padding:11px 12px 11px 18px;font-size:14.5px;font-weight:600;
+  display:none;align-items:center;gap:10px;z-index:70;box-shadow:var(--shadow);white-space:nowrap;}
+.toast.show{display:flex;}
+.toast button{background:rgba(255,255,255,.18);border:none;color:inherit;border-radius:999px;
+  padding:6px 13px;font-size:13.5px;font-weight:800;cursor:pointer;}
+@media (prefers-color-scheme: dark){ .toast{background:#efe8dd;color:#2a251f;} .toast button{background:rgba(0,0,0,.12);} }
+/* wizard */
+.wizard{position:fixed;inset:0;background:var(--bg);z-index:80;display:none;overflow:auto;
+  padding:32px 22px calc(30px + env(safe-area-inset-bottom));}
+.wizard.show{display:block;}
+.wizard .inner{max-width:440px;margin:0 auto;}
+.wizard h1{font-size:26px;margin:10px 0 6px;}
+.wizard p{color:var(--ink2);font-size:15.5px;}
+.wiz-btn{width:100%;border:none;border-radius:16px;padding:16px;font-size:16.5px;font-weight:700;cursor:pointer;margin-top:12px;}
+.wiz-primary{background:var(--accent);color:#3a2803;}
+.wiz-ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);}
+.wiz-err{color:var(--bad);font-size:14px;margin-top:10px;display:none;}
+.bigemoji{font-size:44px;}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:13px;}
+.hidden{display:none !important;}
+.empty{color:var(--ink2);text-align:center;padding:34px 12px;font-size:15px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="babyname" id="babyName">Baby</div>
+    <div class="syncchip" id="syncChip" title="Tap to sync">
+      <span class="dot" id="syncDot"></span><span id="syncText">not connected</span>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div id="page-home">
+    <div class="card lastfeed" id="lastFeedCard"></div>
+    <div class="bigbtns">
+      <button class="btn-feed" id="btnFeed">🍼&nbsp; Start feed</button>
+      <div class="row2">
+        <button class="btn-poop" id="btnPoop">💩&nbsp; Poop</button>
+        <button class="btn-pee" id="btnPee">💧&nbsp; Pee</button>
+      </div>
+    </div>
+    <div class="recent" id="recentWrap">
+      <h3>Recent</h3>
+      <div id="recentList"></div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div id="page-log" class="hidden"></div>
+
+  <!-- SUMMARY -->
+  <div id="page-summary" class="hidden"></div>
+
+  <!-- SETTINGS -->
+  <div id="page-settings" class="hidden"></div>
+</div>
+
+<!-- bottom tabs -->
+<nav class="tabs">
+  <button class="tab active" data-page="home"><span class="ti">🏠</span>Home</button>
+  <button class="tab" data-page="log"><span class="ti">📋</span>Log</button>
+  <button class="tab" data-page="summary"><span class="ti">📊</span>Summary</button>
+  <button class="tab" data-page="settings"><span class="ti">⚙️</span>Settings</button>
+</nav>
+
+<!-- overlay + sheets -->
+<div class="overlay" id="overlay"></div>
+
+<div class="sheet" id="feedSheet">
+  <h2>Log a feed</h2>
+  <div class="field">
+    <label>Side</label>
+    <div class="seg" id="feedSideSeg">
+      <button data-side="L">Left<span class="hint" id="hintL"></span></button>
+      <button data-side="R">Right<span class="hint" id="hintR"></span></button>
+    </div>
+  </div>
+  <div class="field">
+    <label>Start time &nbsp;<button class="nowlink" id="feedNow">set to now</button></label>
+    <input type="datetime-local" id="feedTime">
+  </div>
+  <div class="sheet-actions">
+    <button class="sa-cancel" id="feedCancel">Cancel</button>
+    <button class="sa-save" id="feedSave">Save feed</button>
+  </div>
+</div>
+
+<div class="sheet" id="editSheet">
+  <h2 id="editTitle">Edit entry</h2>
+  <div class="field">
+    <label>Type</label>
+    <div class="seg" id="editTypeSeg">
+      <button data-type="feed">🍼 Feed</button>
+      <button data-type="poop">💩 Poop</button>
+      <button data-type="pee">💧 Pee</button>
+    </div>
+  </div>
+  <div class="field" id="editSideField">
+    <label>Side</label>
+    <div class="seg" id="editSideSeg">
+      <button data-side="L">Left</button>
+      <button data-side="R">Right</button>
+    </div>
+  </div>
+  <div class="field">
+    <label>Time</label>
+    <input type="datetime-local" id="editTime">
+  </div>
+  <div class="sheet-actions">
+    <button class="sa-del" id="editDelete">Delete</button>
+    <button class="sa-save" id="editSave">Save</button>
+  </div>
+  <div class="sheet-actions" style="margin-top:10px;">
+    <button class="sa-cancel" id="editCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="sheet" id="importSheet">
+  <h2>Import entries</h2>
+  <p class="sub">Paste JSON from an export, or simple lines like:<br>
+  <span class="mono">2026-07-18 14:35 feed L</span><br>
+  <span class="mono">2026-07-18 15:10 poop</span><br>
+  <span class="mono">7/18 3:22 pm pee</span></p>
+  <div class="field"><textarea id="importText" placeholder="Paste here…"></textarea></div>
+  <div class="sub" id="importPreview" style="margin-top:8px;"></div>
+  <div class="sheet-actions">
+    <button class="sa-cancel" id="importCancel">Cancel</button>
+    <button class="sa-save" id="importGo">Import</button>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
+
+<!-- setup wizard -->
+<div class="wizard" id="wizard">
+  <div class="inner">
+    <div id="wiz-intro">
+      <div class="bigemoji">🍼</div>
+      <h1>Baby Tracker</h1>
+      <p>Track feeds, poops and pees — shared live between two phones, stored privately in your own GitHub account.</p>
+      <button class="wiz-btn wiz-primary" id="wizConnect">Set up shared sync</button>
+      <button class="wiz-btn wiz-ghost" id="wizSkip">Use on this phone only (for now)</button>
+    </div>
+    <div id="wiz-token" class="hidden">
+      <h1>Connect GitHub</h1>
+      <p>Paste your GitHub token (starts with <span class="mono">ghp_</span>). It's stored only on this phone and used to keep the shared log in a private gist.</p>
+      <div class="field"><input type="text" id="wizTokenInput" placeholder="ghp_…" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <div class="wiz-err" id="wizErr"></div>
+      <button class="wiz-btn wiz-primary" id="wizTokenGo">Connect</button>
+      <button class="wiz-btn wiz-ghost" id="wizTokenBack">Back</button>
+    </div>
+    <div id="wiz-join" class="hidden">
+      <div class="bigemoji">👋</div>
+      <h1>Join shared log</h1>
+      <p id="wizJoinText">You've been invited to a shared baby log.</p>
+      <div class="wiz-err" id="wizJoinErr"></div>
+      <button class="wiz-btn wiz-primary" id="wizJoinGo">Join</button>
+      <button class="wiz-btn wiz-ghost" id="wizJoinSkip">Not now</button>
+    </div>
+    <div id="wiz-busy" class="hidden">
+      <div class="bigemoji">⏳</div>
+      <h1 id="wizBusyText">Connecting…</h1>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= constants & storage ================= */
+const API_BASE = localStorage.getItem('bt_apibase') || 'https://api.github.com';
+const GIST_FILE = 'babylog.json';
+const GIST_DESC = 'Baby Tracker shared data (created by the Baby Tracker app)';
+const LS_EVENTS='bt_events', LS_CFG='bt_cfg', LS_META='bt_meta';
+
+let events = load(LS_EVENTS, []);           // {id,type,side,ts,updatedAt,deleted}
+let cfg    = load(LS_CFG, null);            // {token,gistId}
+let meta   = load(LS_META, {name:'Baby', nameUpdatedAt:0});
+let lastSyncAt = 0, syncTimer=null, pendingPush=false, syncing=false;
+
+// Seed events baked in by Claude (merged once by id; safe to leave here forever)
+const SEED_EVENTS = [];
+
+function load(k,d){ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(e){ return d; } }
+function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function persist(){ save(LS_EVENTS, events); save(LS_META, meta); if(cfg) save(LS_CFG,cfg); }
+
+function uuid(){
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxxyxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);})+Date.now().toString(16);
+}
+
+/* ================= time helpers ================= */
+const fmtTime = ts => new Date(ts).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+const fmtDay  = ts => new Date(ts).toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+const fmtDayLong = ts => new Date(ts).toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
+function dayKey(ts){ const d=new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function agoText(ts){
+  const m = Math.max(0, Math.round((Date.now()-ts)/60000));
+  if (m<1) return 'just now';
+  const h=Math.floor(m/60), mm=m%60;
+  if (h<1) return mm+' min ago';
+  if (h<48) return h+'h '+String(mm).padStart(2,'0')+'m ago';
+  return Math.floor(h/24)+' days ago';
+}
+function toLocalInput(ts){
+  const d=new Date(ts), p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+}
+function fromLocalInput(s){ const t=new Date(s).getTime(); return isNaN(t)?Date.now():t; }
+
+/* ================= data ops ================= */
+function alive(){ return events.filter(e=>!e.deleted); }
+function lastFeed(){
+  return alive().filter(e=>e.type==='feed').sort((a,b)=>b.ts-a.ts)[0] || null;
+}
+function suggestedSide(){
+  const lf=lastFeed();
+  if(!lf || !lf.side) return null;
+  return lf.side==='L' ? 'R' : 'L';
+}
+function addEvent(type, side, ts){
+  const ev={id:uuid(), type, side:side||null, ts:ts||Date.now(), updatedAt:Date.now(), deleted:false};
+  events.push(ev); persist(); renderAll(); scheduleSync();
+  return ev;
+}
+function updateEvent(id, patch){
+  const ev=events.find(e=>e.id===id); if(!ev) return;
+  Object.assign(ev, patch, {updatedAt:Date.now()});
+  persist(); renderAll(); scheduleSync();
+}
+function mergeEvents(a, b){
+  const map=new Map();
+  for(const e of a) map.set(e.id, e);
+  for(const e of b){
+    const cur=map.get(e.id);
+    if(!cur || (e.updatedAt||0) > (cur.updatedAt||0)) map.set(e.id, e);
+  }
+  return [...map.values()].sort((x,y)=>x.ts-y.ts);
+}
+function mergeMeta(m1,m2){
+  return ((m2.nameUpdatedAt||0) > (m1.nameUpdatedAt||0)) ? m2 : m1;
+}
+function docSig(evts, m){ // stable signature to detect "do we need to push?"
+  return JSON.stringify([evts.map(e=>[e.id,e.updatedAt,e.deleted?1:0]).sort(), m.name, m.nameUpdatedAt||0]);
+}
+
+/* ================= gist sync ================= */
+function gh(path, opts={}){
+  opts.headers = Object.assign({
+    'Authorization':'token '+cfg.token,
+    'Accept':'application/vnd.github+json'
+  }, opts.headers||{});
+  return fetch(API_BASE+path, opts);
+}
+async function readGist(){
+  const r = await gh('/gists/'+cfg.gistId);
+  if(r.status===404) throw new Error('gist-missing');
+  if(!r.ok) throw new Error('read failed ('+r.status+')');
+  const g = await r.json();
+  const f = g.files && g.files[GIST_FILE];
+  if(!f) return {events:[], meta:{name:'Baby',nameUpdatedAt:0}};
+  let content = f.content;
+  if(f.truncated){ const rr=await fetch(f.raw_url); content=await rr.text(); }
+  try{
+    const doc=JSON.parse(content);
+    return {events:doc.events||[], meta:doc.meta||{name:'Baby',nameUpdatedAt:0}};
+  }catch(e){ return {events:[], meta:{name:'Baby',nameUpdatedAt:0}}; }
+}
+async function writeGist(evts, m){
+  const doc={version:1, savedAt:new Date().toISOString(), meta:m, events:evts};
+  const r = await gh('/gists/'+cfg.gistId, {method:'PATCH', body:JSON.stringify({
+    files:{ [GIST_FILE]: {content: JSON.stringify(doc)} }
+  })});
+  if(!r.ok) throw new Error('write failed ('+r.status+')');
+}
+async function sync(){
+  if(!cfg || !cfg.token || !cfg.gistId || syncing) return;
+  syncing=true; setSyncUI('sync','syncing…');
+  try{
+    const remote = await readGist();
+    const mergedEvents = mergeEvents(remote.events, events);
+    const mergedMeta = mergeMeta(remote.meta||{name:'Baby',nameUpdatedAt:0}, meta);
+    const needPush = docSig(mergedEvents, mergedMeta) !== docSig(remote.events, remote.meta||{name:'Baby',nameUpdatedAt:0});
+    if(needPush) await writeGist(mergedEvents, mergedMeta);
+    events=mergedEvents; meta=mergedMeta; persist();
+    lastSyncAt=Date.now(); pendingPush=false;
+    setSyncUI('ok', 'synced'); renderAll();
+  }catch(e){
+    setSyncUI('err', navigator.onLine===false ? 'offline' : 'sync error');
+  }finally{ syncing=false; }
+}
+function scheduleSync(){
+  pendingPush=true;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(sync, 1200);
+}
+function setSyncUI(state, text){
+  const dot=document.getElementById('syncDot'), t=document.getElementById('syncText');
+  dot.className='dot '+(state||'');
+  t.textContent = text || 'not connected';
+}
+function refreshSyncChip(){
+  if(!cfg){ setSyncUI('', 'not connected'); return; }
+  if(syncing) return;
+  if(pendingPush){ setSyncUI('sync','saving…'); return; }
+  if(lastSyncAt) setSyncUI('ok','synced '+agoText(lastSyncAt).replace(' ago',' ago'));
+}
+
+/* ============ gist find-or-create (setup) ============ */
+async function tokenFetch(token, path, opts={}){
+  opts.headers=Object.assign({'Authorization':'token '+token,'Accept':'application/vnd.github+json'}, opts.headers||{});
+  return fetch(API_BASE+path, opts);
+}
+async function findOrCreateGist(token){
+  // look through user's gists for our file
+  let r = await tokenFetch(token, '/gists?per_page=100');
+  if(r.status===401) throw new Error('That token was rejected by GitHub. Double-check you copied the whole thing.');
+  if(!r.ok) throw new Error('Could not reach GitHub ('+r.status+').');
+  const gists = await r.json();
+  const hit = gists.find(g=>g.files && g.files[GIST_FILE]);
+  if(hit) return hit.id;
+  // create
+  r = await tokenFetch(token, '/gists', {method:'POST', body:JSON.stringify({
+    description: GIST_DESC, public:false,
+    files:{ [GIST_FILE]:{content: JSON.stringify({version:1, meta:{name:'Baby',nameUpdatedAt:0}, events:[]})} }
+  })});
+  if(r.status===401||r.status===403) throw new Error('GitHub refused to create the storage gist. Make sure the token has the "gist" scope.');
+  if(!r.ok) throw new Error('Could not create storage ('+r.status+').');
+  const g = await r.json();
+  return g.id;
+}
+
+/* ================= rendering ================= */
+const $=id=>document.getElementById(id);
+function renderAll(){ renderHome(); renderLog(); renderSummary(); renderSettings(); $('babyName').textContent = meta.name || 'Baby'; }
+
+function renderHome(){
+  const lf=lastFeed(), card=$('lastFeedCard');
+  if(!lf){
+    card.innerHTML='<div class="label">Last feed</div><div class="lf-main"><div class="lf-time">—</div></div><div class="lf-ago">No feeds logged yet</div>';
+  }else{
+    const sug=suggestedSide();
+    const sideName=lf.side==='L'?'Left':(lf.side==='R'?'Right':'');
+    const isToday=dayKey(lf.ts)===dayKey(Date.now());
+    card.innerHTML =
+      '<div class="label">Last feed</div>'+
+      '<div class="lf-main"><div class="lf-time">'+fmtTime(lf.ts)+'</div>'+
+      (lf.side?('<div class="lf-side">'+sideName+' · '+lf.side+'</div>'):'')+'</div>'+
+      (isToday?'':('<div class="lf-day">'+fmtDay(lf.ts)+'</div>'))+
+      '<div class="lf-ago">'+agoText(lf.ts)+'</div>'+
+      (sug?('<div class="lf-next">Next feed: <b>'+(sug==='L'?'Left':'Right')+' side</b> <span class="sub">(suggested)</span></div>'):'');
+  }
+  // recent
+  const rec=alive().sort((a,b)=>b.ts-a.ts).slice(0,3);
+  $('recentWrap').style.display = rec.length? '':'none';
+  $('recentList').innerHTML = rec.map(evRowHTML).join('');
+  bindRows($('recentList'));
+}
+
+const ICONS={feed:'🍼',poop:'💩',pee:'💧'};
+function evRowHTML(e){
+  const what = e.type==='feed' ? 'Feed' : (e.type==='poop'?'Poop':'Pee');
+  return '<div class="evrow" data-id="'+e.id+'">'+
+    '<span class="ic">'+ICONS[e.type]+'</span>'+
+    '<span class="t">'+fmtTime(e.ts)+'</span>'+
+    '<span class="what">'+what+'</span>'+
+    (e.type==='feed'&&e.side?('<span class="side">'+e.side+'</span>'):'')+
+  '</div>';
+}
+function bindRows(container){
+  container.querySelectorAll('.evrow').forEach(r=>{
+    r.onclick=()=>openEdit(r.getAttribute('data-id'));
+  });
+}
+
+function renderLog(){
+  const page=$('page-log');
+  const list=alive().sort((a,b)=>b.ts-a.ts);
+  if(!list.length){ page.innerHTML='<div class="empty">Nothing logged yet.<br>Tap a button on Home to get started.</div>'; return; }
+  const days={};
+  for(const e of list){ (days[dayKey(e.ts)]=days[dayKey(e.ts)]||[]).push(e); }
+  let html='';
+  for(const k of Object.keys(days).sort().reverse()){
+    const evs=days[k];
+    const f=evs.filter(e=>e.type==='feed').length, p=evs.filter(e=>e.type==='poop').length, u=evs.filter(e=>e.type==='pee').length;
+    html+='<div class="dayhdr"><span class="d">'+fmtDayLong(evs[0].ts)+'</span>'+
+          '<span class="c">🍼'+f+' · 💩'+p+' · 💧'+u+'</span></div>';
+    html+=evs.map(evRowHTML).join('');
+  }
+  page.innerHTML=html;
+  bindRows(page);
+}
+
+function renderSummary(){
+  const page=$('page-summary');
+  const list=alive();
+  if(!list.length){ page.innerHTML='<div class="empty">No data yet.</div>'; return; }
+  // last 24h
+  const cut=Date.now()-24*3600*1000;
+  const d24=list.filter(e=>e.ts>=cut);
+  const f24=d24.filter(e=>e.type==='feed'), p24=d24.filter(e=>e.type==='poop').length, u24=d24.filter(e=>e.type==='pee').length;
+  const l24=f24.filter(e=>e.side==='L').length, r24=f24.filter(e=>e.side==='R').length;
+  let html='<div class="card"><div class="label" style="font-size:12px;font-weight:700;letter-spacing:1.2px;color:var(--ink2);text-transform:uppercase;">Last 24 hours</div>'+
+    '<div class="statgrid">'+
+    '<div class="stat"><div class="n">'+f24.length+'</div><div class="l">🍼 feeds'+(f24.length?(' ('+l24+'L/'+r24+'R)'):'')+'</div></div>'+
+    '<div class="stat"><div class="n">'+p24+'</div><div class="l">💩 poops</div></div>'+
+    '<div class="stat"><div class="n">'+u24+'</div><div class="l">💧 pees</div></div>'+
+    '</div></div>';
+  // per-day table
+  const days={};
+  for(const e of list){ (days[dayKey(e.ts)]=days[dayKey(e.ts)]||[]).push(e); }
+  let rows='';
+  for(const k of Object.keys(days).sort().reverse()){
+    const evs=days[k], f=evs.filter(e=>e.type==='feed');
+    rows+='<tr><td>'+fmtDay(evs[0].ts)+'</td>'+
+      '<td>'+f.length+'</td>'+
+      '<td>'+f.filter(e=>e.side==='L').length+'</td>'+
+      '<td>'+f.filter(e=>e.side==='R').length+'</td>'+
+      '<td>'+evs.filter(e=>e.type==='poop').length+'</td>'+
+      '<td>'+evs.filter(e=>e.type==='pee').length+'</td></tr>';
+  }
+  html+='<div class="card" style="padding:10px 14px;"><table class="sum">'+
+    '<tr><th>Day</th><th>🍼</th><th>L</th><th>R</th><th>💩</th><th>💧</th></tr>'+rows+'</table></div>'+
+    '<p class="sub" style="margin:12px 4px;">Tip: show this tab at pediatrician appointments.</p>';
+  page.innerHTML=html;
+}
+
+function renderSettings(){
+  const page=$('page-settings');
+  const conn = cfg ? ('Connected · private gist <span class="mono">'+cfg.gistId.slice(0,8)+'…</span>') : 'Not connected';
+  page.innerHTML=
+  '<div class="card" style="padding:6px 16px;">'+
+    '<div class="set-item"><div style="flex:1;"><div class="lbl">Baby\'s name</div>'+
+      '<input type="text" id="setName" style="margin-top:8px;" value="'+(meta.name||'Baby').replace(/"/g,'&quot;')+'"></div></div>'+
+    '<div class="set-item"><div><div class="lbl">Shared sync</div><div class="desc" id="connDesc">'+conn+'</div></div>'+
+      (cfg?'<button class="set-btn" id="setSync">Sync now</button>':'<button class="set-btn primary" id="setConnect">Connect</button>')+'</div>'+
+    (cfg?('<div class="set-item"><div><div class="lbl">Invite partner</div><div class="desc">Send a link that sets up their phone with the same shared log.</div></div>'+
+      '<button class="set-btn primary" id="setShare">Share link</button></div>'):'')+
+  '</div>'+
+  '<div class="card" style="padding:6px 16px;">'+
+    '<div class="set-item"><div><div class="lbl">Import entries</div><div class="desc">Paste past notes or an export.</div></div>'+
+      '<button class="set-btn" id="setImport">Import</button></div>'+
+    '<div class="set-item"><div><div class="lbl">Export backup</div><div class="desc">Download all data as JSON.</div></div>'+
+      '<button class="set-btn" id="setExport">Export</button></div>'+
+    (cfg?('<div class="set-item"><div><div class="lbl">Disconnect</div><div class="desc">Stop syncing on this phone. Data stays here and in the gist.</div></div>'+
+      '<button class="set-btn danger" id="setDisc">Disconnect</button></div>'):'')+
+  '</div>'+
+  '<p class="sub" style="margin:14px 6px;">Data lives in a private GitHub gist on your account plus a local copy on each phone. Add this page to your home screen for one-tap access.</p>';
+
+  const nameInput=$('setName');
+  nameInput.onchange=()=>{ meta={name:nameInput.value.trim()||'Baby', nameUpdatedAt:Date.now()}; persist(); renderAll(); scheduleSync(); };
+  if($('setSync')) $('setSync').onclick=()=>sync();
+  if($('setConnect')) $('setConnect').onclick=()=>{ showWizard('token'); };
+  if($('setShare')) $('setShare').onclick=shareLink;
+  $('setImport').onclick=()=>openSheet('importSheet');
+  $('setExport').onclick=exportJSON;
+  if($('setDisc')) $('setDisc').onclick=()=>{
+    if(confirm('Disconnect this phone from shared sync? Your data stays put.')){
+      cfg=null; localStorage.removeItem(LS_CFG); renderAll(); refreshSyncChip(); setSyncUI('','not connected');
+    }
+  };
+}
+
+/* ================= share / export / import ================= */
+function shareLink(){
+  const payload=btoa(unescape(encodeURIComponent(JSON.stringify({t:cfg.token,g:cfg.gistId,n:meta.name}))))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const url=location.origin+location.pathname+'#s='+payload;
+  const text='Join our baby log 🍼 — open this on your phone, then add it to your home screen:\n'+url;
+  if(navigator.share){ navigator.share({text}).catch(()=>{}); }
+  else{ navigator.clipboard.writeText(text).then(()=>toast('Link copied — text it to your partner')); }
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(), meta, events:alive()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='baby-log-'+dayKey(Date.now())+'.json';
+  a.click();
+}
+function parseImport(text){
+  text=text.trim();
+  if(!text) return [];
+  // JSON?
+  if(text[0]==='['||text[0]==='{'){
+    try{
+      const j=JSON.parse(text);
+      const arr=Array.isArray(j)?j:(j.events||[]);
+      return arr.filter(e=>e&&e.type&&e.ts).map(e=>({
+        id:e.id||uuid(), type:e.type, side:e.side||null,
+        ts:typeof e.ts==='number'?e.ts:new Date(e.ts).getTime(),
+        updatedAt:e.updatedAt||Date.now(), deleted:!!e.deleted
+      })).filter(e=>!isNaN(e.ts));
+    }catch(err){ /* fall through to lines */ }
+  }
+  // line format: [date] [time] type [side]
+  const out=[]; const now=new Date();
+  for(let raw of text.split(/\n+/)){
+    const line=raw.trim().toLowerCase(); if(!line) continue;
+    const m=line.match(/^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+(\d{1,2}:\d{2})\s*(am|pm)?\s+(feed|poop|pee|f|p|u)\b\s*([lr])?/i);
+    if(!m) continue;
+    let [,dstr,tstr,ap,type,side]=m;
+    let y,mo,da;
+    if(dstr.includes('-')){ [y,mo,da]=dstr.split('-').map(Number); }
+    else{ const parts=dstr.split('/').map(Number); mo=parts[0]; da=parts[1]; y=parts[2]?(parts[2]<100?2000+parts[2]:parts[2]):now.getFullYear(); }
+    let [hh,mi]=tstr.split(':').map(Number);
+    if(ap==='pm'&&hh<12)hh+=12; if(ap==='am'&&hh===12)hh=0;
+    const ts=new Date(y,mo-1,da,hh,mi).getTime();
+    if(isNaN(ts)) continue;
+    type = type==='f'?'feed':(type==='p'?'poop':(type==='u'?'pee':type));
+    out.push({id:uuid(), type, side:side?side.toUpperCase():null, ts, updatedAt:Date.now(), deleted:false});
+  }
+  return out;
+}
+
+/* ================= sheets, toast, tabs ================= */
+let sheetOpen=null;
+function openSheet(id){
+  $('overlay').classList.add('show');
+  $(id).classList.add('show');
+  sheetOpen=id;
+}
+function closeSheets(){
+  $('overlay').classList.remove('show');
+  document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'));
+  sheetOpen=null;
+}
+$('overlay').onclick=closeSheets;
+
+let toastTimer=null, toastUndoFn=null;
+function toast(msg, undoFn){
+  $('toastMsg').textContent=msg;
+  $('toastUndo').style.display=undoFn?'':'none';
+  toastUndoFn=undoFn||null;
+  $('toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>$('toast').classList.remove('show'), 5000);
+}
+$('toastUndo').onclick=()=>{
+  if(toastUndoFn) toastUndoFn();
+  $('toast').classList.remove('show');
+};
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    ['home','log','summary','settings'].forEach(p=>{
+      $('page-'+p).classList.toggle('hidden', p!==t.dataset.page);
+    });
+    window.scrollTo(0,0);
+  };
+});
+
+/* ================= quick log buttons ================= */
+function guard(btn){ btn.disabled=true; setTimeout(()=>btn.disabled=false, 900); }
+
+$('btnPoop').onclick=e=>{
+  guard(e.currentTarget);
+  const ev=addEvent('poop');
+  toast('Logged poop at '+fmtTime(ev.ts), ()=>{ updateEvent(ev.id,{deleted:true}); toast('Undone'); });
+};
+$('btnPee').onclick=e=>{
+  guard(e.currentTarget);
+  const ev=addEvent('pee');
+  toast('Logged pee at '+fmtTime(ev.ts), ()=>{ updateEvent(ev.id,{deleted:true}); toast('Undone'); });
+};
+
+/* feed sheet */
+let feedSide=null;
+$('btnFeed').onclick=()=>{
+  const sug=suggestedSide();
+  feedSide = sug || 'L';
+  $('hintL').textContent = sug==='L' ? 'suggested' : '';
+  $('hintR').textContent = sug==='R' ? 'suggested' : '';
+  updateFeedSeg();
+  $('feedTime').value=toLocalInput(Date.now());
+  openSheet('feedSheet');
+};
+function updateFeedSeg(){
+  $('feedSideSeg').querySelectorAll('button').forEach(b=>{
+    b.classList.toggle('sel', b.dataset.side===feedSide);
+  });
+}
+$('feedSideSeg').querySelectorAll('button').forEach(b=>{
+  b.onclick=()=>{ feedSide=b.dataset.side; updateFeedSeg(); };
+});
+$('feedNow').onclick=()=>{ $('feedTime').value=toLocalInput(Date.now()); };
+$('feedCancel').onclick=closeSheets;
+$('feedSave').onclick=()=>{
+  const ts=fromLocalInput($('feedTime').value);
+  const ev=addEvent('feed', feedSide, ts);
+  closeSheets();
+  toast('Logged feed · '+(feedSide==='L'?'Left':'Right')+' · '+fmtTime(ev.ts),
+        ()=>{ updateEvent(ev.id,{deleted:true}); toast('Undone'); });
+};
+
+/* edit sheet */
+let editId=null, editType=null, editSide=null;
+function openEdit(id){
+  const ev=events.find(e=>e.id===id); if(!ev) return;
+  editId=id; editType=ev.type; editSide=ev.side||'L';
+  $('editTime').value=toLocalInput(ev.ts);
+  refreshEditSegs();
+  openSheet('editSheet');
+}
+function refreshEditSegs(){
+  $('editTypeSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('sel', b.dataset.type===editType));
+  $('editSideField').style.display = editType==='feed' ? '' : 'none';
+  $('editSideSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('sel', b.dataset.side===editSide));
+}
+$('editTypeSeg').querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ editType=b.dataset.type; refreshEditSegs(); }; });
+$('editSideSeg').querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ editSide=b.dataset.side; refreshEditSegs(); }; });
+$('editCancel').onclick=closeSheets;
+$('editSave').onclick=()=>{
+  updateEvent(editId,{type:editType, side:editType==='feed'?editSide:null, ts:fromLocalInput($('editTime').value)});
+  closeSheets(); toast('Entry updated');
+};
+$('editDelete').onclick=()=>{
+  if(confirm('Delete this entry?')){
+    updateEvent(editId,{deleted:true});
+    closeSheets(); toast('Entry deleted');
+  }
+};
+
+/* import sheet */
+$('importText').oninput=()=>{
+  const n=parseImport($('importText').value).length;
+  $('importPreview').textContent = n ? (n+' entr'+(n===1?'y':'ies')+' recognized') : '';
+};
+$('importCancel').onclick=closeSheets;
+$('importGo').onclick=()=>{
+  const list=parseImport($('importText').value);
+  if(!list.length){ $('importPreview').textContent='Nothing recognized — check the format.'; return; }
+  events=mergeEvents(events, list);
+  persist(); renderAll(); scheduleSync(); closeSheets();
+  toast('Imported '+list.length+' entries');
+  $('importText').value=''; $('importPreview').textContent='';
+};
+
+/* sync chip */
+$('syncChip').onclick=()=>{ if(cfg) sync(); else showWizard('token'); };
+
+/* ================= wizard ================= */
+function showWizard(step){
+  $('wizard').classList.add('show');
+  ['intro','token','join','busy'].forEach(s=>$('wiz-'+s).classList.toggle('hidden', s!==step));
+}
+function hideWizard(){ $('wizard').classList.remove('show'); }
+$('wizConnect').onclick=()=>showWizard('token');
+$('wizSkip').onclick=()=>{ localStorage.setItem('bt_skipped','1'); hideWizard(); };
+$('wizTokenBack').onclick=()=>{ cfg?hideWizard():showWizard('intro'); };
+$('wizTokenGo').onclick=async ()=>{
+  const token=$('wizTokenInput').value.trim();
+  const err=$('wizErr'); err.style.display='none';
+  if(!/^gh[ps]_/.test(token) && token.length<20){ err.textContent='That doesn\'t look like a GitHub token (should start with ghp_).'; err.style.display='block'; return; }
+  showWizard('busy'); $('wizBusyText').textContent='Connecting to GitHub…';
+  try{
+    const gistId=await findOrCreateGist(token);
+    cfg={token, gistId}; persist();
+    hideWizard(); await sync();
+    toast('Connected! Use Settings → Share link to add your partner\'s phone.');
+  }catch(e){
+    showWizard('token');
+    err.textContent=e.message||'Something went wrong.'; err.style.display='block';
+  }
+};
+
+/* join via #s= link */
+let joinPayload=null;
+function checkJoinHash(){
+  const m=location.hash.match(/#s=([A-Za-z0-9_\-]+)/);
+  if(!m) return false;
+  try{
+    const b64=m[1].replace(/-/g,'+').replace(/_/g,'/');
+    joinPayload=JSON.parse(decodeURIComponent(escape(atob(b64))));
+    if(!joinPayload.t||!joinPayload.g) return false;
+    $('wizJoinText').textContent='You\'ve been invited to '+(joinPayload.n?('the shared log for '+joinPayload.n):'a shared baby log')+'. This phone will see and add to the same entries.';
+    history.replaceState(null,'',location.pathname+location.search);
+    showWizard('join');
+    return true;
+  }catch(e){ return false; }
+}
+$('wizJoinGo').onclick=async ()=>{
+  showWizard('busy'); $('wizBusyText').textContent='Joining…';
+  cfg={token:joinPayload.t, gistId:joinPayload.g};
+  if(joinPayload.n){ meta={name:joinPayload.n, nameUpdatedAt:Date.now()}; }
+  persist(); hideWizard(); await sync();
+  toast('Joined! You\'re both on the same log now.');
+};
+$('wizJoinSkip').onclick=hideWizard;
+
+/* ================= boot ================= */
+function boot(){
+  // merge any baked-in seed data once
+  if(SEED_EVENTS.length){
+    events=mergeEvents(events, SEED_EVENTS);
+    persist();
+  }
+  renderAll();
+  if(!checkJoinHash()){
+    if(!cfg && !localStorage.getItem('bt_skipped') && alive().length===0) showWizard('intro');
+  }
+  if(cfg) sync();
+  setInterval(()=>{ renderHome(); refreshSyncChip(); }, 30000);
+  setInterval(()=>{ if(cfg && !document.hidden) sync(); }, 90000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && cfg) sync(); });
+  window.addEventListener('hashchange', checkJoinHash);
+  window.addEventListener('online', ()=>{ if(cfg) sync(); });
+  if('serviceWorker' in navigator && location.protocol==='https:'){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+}
+boot();
+</script>
+</body>
+</html>
