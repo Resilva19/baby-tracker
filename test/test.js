@@ -156,6 +156,61 @@ function ok(cond, name) {
   const evB2 = await B.evaluate(() => JSON.parse(localStorage.getItem('bt_events')).filter(e => !e.deleted).length);
   ok(evB2 === 7, 'phone B receives imported entries');
 
+  console.log('== sleep tracking ==');
+  await A.click('.tab[data-page="home"]');
+  await A.click('#btnSleep');
+  await A.waitForTimeout(300);
+  ok((await A.locator('#btnSleep').textContent()).includes('Sleeping'), 'sleep button shows active state');
+  let sleeps = await A.evaluate(() => JSON.parse(localStorage.getItem('bt_events')).filter(e => e.type === 'sleep' && !e.deleted));
+  ok(sleeps.length === 1 && sleeps[0].end == null, 'open sleep event stored');
+  await A.waitForTimeout(2000); // let debounce push
+  // cross-phone: B sees the ongoing sleep and ends it
+  await B.click('#syncChip');
+  await B.waitForTimeout(1200);
+  await B.click('.tab[data-page="home"]');
+  ok((await B.locator('#btnSleep').textContent()).includes('Sleeping'), 'phone B sees ongoing sleep');
+  await B.click('#btnSleep');
+  await B.waitForTimeout(2000);
+  await A.click('#syncChip');
+  await A.waitForTimeout(1200);
+  ok((await A.locator('#btnSleep').textContent()).includes('Start sleep'), 'phone A sees sleep ended by B');
+  sleeps = await A.evaluate(() => JSON.parse(localStorage.getItem('bt_events')).filter(e => e.type === 'sleep' && !e.deleted));
+  ok(sleeps.length === 1 && typeof sleeps[0].end === 'number', 'sleep has end timestamp after B stopped it');
+
+  console.log('== sleep import + summary average ==');
+  await A.click('.tab[data-page="settings"]');
+  await A.click('#setImport');
+  await A.fill('#importText', '2026-07-15 2:00pm sleep 3:00pm\n2026-07-15 4:00pm sleep 4:30pm\n2026-07-15 11:00pm sleep 1:00am');
+  await A.waitForTimeout(200);
+  ok((await A.locator('#importPreview').textContent()).includes('3 entries'), 'sleep import lines recognized');
+  await A.click('#importGo');
+  await A.waitForTimeout(400);
+  const imported = await A.evaluate(() => JSON.parse(localStorage.getItem('bt_events')).filter(e => e.type === 'sleep' && e.ts < new Date(2026, 6, 16).getTime() && !e.deleted));
+  ok(imported.length === 3, 'three sleeps imported for Jul 15');
+  ok(imported.some(e => e.end - e.ts === 2 * 3600e3), 'overnight sleep (11pm-1am) spans 2h into next day');
+  // avg for Jul 15: (60 + 30 + 120) / 3 = 70min = 1h 10m
+  await A.click('.tab[data-page="summary"]');
+  const sumTxt = await A.locator('#page-summary').textContent();
+  ok(sumTxt.includes('1h 10m'), 'daily summary shows 1h 10m average sleep for Jul 15');
+  ok(sumTxt.includes('avg sleep'), 'last-24h card includes avg sleep stat');
+  ok(!/\bL\b.*\bR\b/.test(await A.locator('#page-summary table.sum tr').first().textContent()), 'L/R columns removed from summary table');
+
+  console.log('== edit sleep entry ==');
+  await A.click('.tab[data-page="log"]');
+  const sleepRow = A.locator('#page-log .evrow', { hasText: 'Sleep · 30m' }).first();
+  await sleepRow.click();
+  ok(await A.locator('#editEndField').isVisible(), 'edit sheet shows end-time field for sleep');
+  // invalid end before start rejected
+  const startVal = await A.inputValue('#editTime');
+  await A.fill('#editEndTime', '2026-07-15T13:00');
+  await A.click('#editSave');
+  await A.waitForTimeout(300);
+  ok(await A.locator('#editSheet').isVisible(), 'invalid end time keeps sheet open');
+  await A.fill('#editEndTime', '2026-07-15T16:45');
+  await A.click('#editSave');
+  await A.waitForTimeout(300);
+  ok((await A.locator('#page-log').textContent()).includes('Sleep · 45m'), 'sleep duration updated to 45m after edit');
+
   console.log('== bad token handling ==');
   const ctxC = await browser.newContext();
   await ctxC.addInitScript(api => { try { localStorage.setItem('bt_apibase', api); } catch (e) {} }, MOCK_API);

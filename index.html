@@ -18,6 +18,7 @@
   --bg:#fdf9f4; --card:#ffffff; --ink:#33302c; --ink2:#8a8378; --line:#eee7dc;
   --accent:#e2a13d; --accent-ink:#5c3d0a; --accent-soft:#fbf0dc;
   --poop:#a9805b; --poop-soft:#f3e9e0; --pee:#5b9bd4; --pee-soft:#e4f0fa;
+  --sleep:#7d6bb5; --sleep-soft:#ece7f7;
   --good:#6aa87a; --bad:#cf6a5f; --sheet:#ffffff; --press:#f5eee3;
   --shadow:0 10px 30px rgba(90,70,40,.10);
 }
@@ -26,6 +27,7 @@
     --bg:#1c1917; --card:#26221f; --ink:#ece6dd; --ink2:#948c80; --line:#37322c;
     --accent:#e2a13d; --accent-ink:#ffe9c4; --accent-soft:#3a3125;
     --poop:#c39b76; --poop-soft:#352c24; --pee:#7cb4e4; --pee-soft:#22303c;
+    --sleep:#a897dd; --sleep-soft:#2d2839;
     --good:#7dbd8d; --bad:#e08175; --sheet:#2b2723; --press:#332e29;
     --shadow:0 10px 30px rgba(0,0,0,.35);
   }
@@ -69,7 +71,11 @@ button{font-family:inherit;}
 .btn-poop,.btn-pee{flex:1;border:none;border-radius:20px;padding:18px 8px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:var(--shadow);}
 .btn-poop{background:var(--poop-soft);color:var(--poop);}
 .btn-pee{background:var(--pee-soft);color:var(--pee);}
-.btn-feed:active,.btn-poop:active,.btn-pee:active{transform:scale(.97);}
+.btn-sleep{width:100%;border:none;border-radius:20px;padding:16px 8px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:var(--shadow);
+  background:var(--sleep-soft);color:var(--sleep);}
+.btn-sleep.active{border:2px solid var(--sleep);}
+.btn-sleep .sub2{display:block;font-size:12.5px;font-weight:600;opacity:.75;margin-top:2px;}
+.btn-feed:active,.btn-poop:active,.btn-pee:active,.btn-sleep:active{transform:scale(.97);}
 button:disabled{opacity:.55;}
 /* recent */
 .recent{margin-top:16px;}
@@ -185,6 +191,7 @@ textarea{min-height:120px;resize:vertical;}
         <button class="btn-poop" id="btnPoop">💩&nbsp; Poop</button>
         <button class="btn-pee" id="btnPee">💧&nbsp; Pee</button>
       </div>
+      <button class="btn-sleep" id="btnSleep">😴&nbsp; Start sleep</button>
     </div>
     <div class="recent" id="recentWrap">
       <h3>Recent</h3>
@@ -237,9 +244,10 @@ textarea{min-height:120px;resize:vertical;}
   <div class="field">
     <label>Type</label>
     <div class="seg" id="editTypeSeg">
-      <button data-type="feed">🍼 Feed</button>
-      <button data-type="poop">💩 Poop</button>
-      <button data-type="pee">💧 Pee</button>
+      <button data-type="feed">🍼</button>
+      <button data-type="poop">💩</button>
+      <button data-type="pee">💧</button>
+      <button data-type="sleep">😴</button>
     </div>
   </div>
   <div class="field" id="editSideField">
@@ -250,8 +258,12 @@ textarea{min-height:120px;resize:vertical;}
     </div>
   </div>
   <div class="field">
-    <label>Time</label>
+    <label id="editTimeLabel">Time</label>
     <input type="datetime-local" id="editTime">
+  </div>
+  <div class="field" id="editEndField">
+    <label>End time <span style="text-transform:none;font-weight:600;">(leave empty if still sleeping)</span></label>
+    <input type="datetime-local" id="editEndTime">
   </div>
   <div class="sheet-actions">
     <button class="sa-del" id="editDelete">Delete</button>
@@ -267,7 +279,8 @@ textarea{min-height:120px;resize:vertical;}
   <p class="sub">Paste JSON from an export, or simple lines like:<br>
   <span class="mono">2026-07-18 14:35 feed L</span><br>
   <span class="mono">2026-07-18 15:10 poop</span><br>
-  <span class="mono">7/18 3:22 pm pee</span></p>
+  <span class="mono">7/18 3:22 pm pee</span><br>
+  <span class="mono">7/18 2:14pm sleep 3:40pm</span></p>
   <div class="field"><textarea id="importText" placeholder="Paste here…"></textarea></div>
   <div class="sub" id="importPreview" style="margin-top:8px;"></div>
   <div class="sheet-actions">
@@ -350,6 +363,10 @@ function agoText(ts){
   if (h<48) return h+'h '+String(mm).padStart(2,'0')+'m ago';
   return Math.floor(h/24)+' days ago';
 }
+function fmtDur(ms){
+  const m=Math.max(0, Math.round(ms/60000)), h=Math.floor(m/60);
+  return h ? h+'h '+String(m%60).padStart(2,'0')+'m' : (m%60)+'m';
+}
 function toLocalInput(ts){
   const d=new Date(ts), p=n=>String(n).padStart(2,'0');
   return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
@@ -365,6 +382,14 @@ function suggestedSide(){
   const lf=lastFeed();
   if(!lf || !lf.side) return null;
   return lf.side==='L' ? 'R' : 'L';
+}
+function activeSleep(){
+  return alive().filter(e=>e.type==='sleep' && !e.end).sort((a,b)=>b.ts-a.ts)[0] || null;
+}
+function avgSleep(evts){ // average duration of completed sleeps in the given list
+  const done=evts.filter(e=>e.type==='sleep' && e.end);
+  if(!done.length) return null;
+  return done.reduce((s,e)=>s+(e.end-e.ts),0)/done.length;
 }
 function addEvent(type, side, ts){
   const ev={id:uuid(), type, side:side||null, ts:ts||Date.now(), updatedAt:Date.now(), deleted:false};
@@ -498,6 +523,15 @@ function renderHome(){
       '<div class="lf-ago">'+agoText(lf.ts)+'</div>'+
       (sug?('<div class="lf-next">Next feed: <b>'+(sug==='L'?'Left':'Right')+' side</b> <span class="sub">(suggested)</span></div>'):'');
   }
+  // sleep button state
+  const as=activeSleep(), sb=$('btnSleep');
+  if(as){
+    sb.classList.add('active');
+    sb.innerHTML='😴&nbsp; Sleeping · '+fmtDur(Date.now()-as.ts)+'<span class="sub2">since '+fmtTime(as.ts)+' — tap when he wakes up</span>';
+  }else{
+    sb.classList.remove('active');
+    sb.innerHTML='😴&nbsp; Start sleep';
+  }
   // recent
   const rec=alive().sort((a,b)=>b.ts-a.ts).slice(0,3);
   $('recentWrap').style.display = rec.length? '':'none';
@@ -505,9 +539,10 @@ function renderHome(){
   bindRows($('recentList'));
 }
 
-const ICONS={feed:'🍼',poop:'💩',pee:'💧'};
+const ICONS={feed:'🍼',poop:'💩',pee:'💧',sleep:'😴'};
 function evRowHTML(e){
-  const what = e.type==='feed' ? 'Feed' : (e.type==='poop'?'Poop':'Pee');
+  let what = e.type==='feed' ? 'Feed' : (e.type==='poop'?'Poop':(e.type==='pee'?'Pee':'Sleep'));
+  if(e.type==='sleep') what = e.end ? ('Sleep · '+fmtDur(e.end-e.ts)) : 'Sleeping…';
   return '<div class="evrow" data-id="'+e.id+'">'+
     '<span class="ic">'+ICONS[e.type]+'</span>'+
     '<span class="t">'+fmtTime(e.ts)+'</span>'+
@@ -531,8 +566,9 @@ function renderLog(){
   for(const k of Object.keys(days).sort().reverse()){
     const evs=days[k];
     const f=evs.filter(e=>e.type==='feed').length, p=evs.filter(e=>e.type==='poop').length, u=evs.filter(e=>e.type==='pee').length;
+    const sl=evs.filter(e=>e.type==='sleep').length;
     html+='<div class="dayhdr"><span class="d">'+fmtDayLong(evs[0].ts)+'</span>'+
-          '<span class="c">🍼'+f+' · 💩'+p+' · 💧'+u+'</span></div>';
+          '<span class="c">🍼'+f+(sl?(' · 😴'+sl):'')+' · 💩'+p+' · 💧'+u+'</span></div>';
     html+=evs.map(evRowHTML).join('');
   }
   page.innerHTML=html;
@@ -546,29 +582,29 @@ function renderSummary(){
   // last 24h
   const cut=Date.now()-24*3600*1000;
   const d24=list.filter(e=>e.ts>=cut);
-  const f24=d24.filter(e=>e.type==='feed'), p24=d24.filter(e=>e.type==='poop').length, u24=d24.filter(e=>e.type==='pee').length;
-  const l24=f24.filter(e=>e.side==='L').length, r24=f24.filter(e=>e.side==='R').length;
+  const f24=d24.filter(e=>e.type==='feed').length, p24=d24.filter(e=>e.type==='poop').length, u24=d24.filter(e=>e.type==='pee').length;
+  const s24=avgSleep(d24);
   let html='<div class="card"><div class="label" style="font-size:12px;font-weight:700;letter-spacing:1.2px;color:var(--ink2);text-transform:uppercase;">Last 24 hours</div>'+
     '<div class="statgrid">'+
-    '<div class="stat"><div class="n">'+f24.length+'</div><div class="l">🍼 feeds'+(f24.length?(' ('+l24+'L/'+r24+'R)'):'')+'</div></div>'+
+    '<div class="stat"><div class="n">'+f24+'</div><div class="l">🍼 feeds</div></div>'+
+    '<div class="stat"><div class="n" style="font-size:19px;line-height:29px;">'+(s24!=null?fmtDur(s24):'—')+'</div><div class="l">😴 avg sleep</div></div>'+
     '<div class="stat"><div class="n">'+p24+'</div><div class="l">💩 poops</div></div>'+
     '<div class="stat"><div class="n">'+u24+'</div><div class="l">💧 pees</div></div>'+
     '</div></div>';
-  // per-day table
+  // per-day table (sleeps count toward the day they started)
   const days={};
   for(const e of list){ (days[dayKey(e.ts)]=days[dayKey(e.ts)]||[]).push(e); }
   let rows='';
   for(const k of Object.keys(days).sort().reverse()){
-    const evs=days[k], f=evs.filter(e=>e.type==='feed');
+    const evs=days[k], avg=avgSleep(evs);
     rows+='<tr><td>'+fmtDay(evs[0].ts)+'</td>'+
-      '<td>'+f.length+'</td>'+
-      '<td>'+f.filter(e=>e.side==='L').length+'</td>'+
-      '<td>'+f.filter(e=>e.side==='R').length+'</td>'+
+      '<td>'+evs.filter(e=>e.type==='feed').length+'</td>'+
+      '<td>'+(avg!=null?fmtDur(avg):'—')+'</td>'+
       '<td>'+evs.filter(e=>e.type==='poop').length+'</td>'+
       '<td>'+evs.filter(e=>e.type==='pee').length+'</td></tr>';
   }
   html+='<div class="card" style="padding:10px 14px;"><table class="sum">'+
-    '<tr><th>Day</th><th>🍼</th><th>L</th><th>R</th><th>💩</th><th>💧</th></tr>'+rows+'</table></div>'+
+    '<tr><th>Day</th><th>🍼</th><th>😴 avg</th><th>💩</th><th>💧</th></tr>'+rows+'</table></div>'+
     '<p class="sub" style="margin:12px 4px;">Tip: show this tab at pediatrician appointments.</p>';
   page.innerHTML=html;
 }
@@ -636,6 +672,7 @@ function parseImport(text){
       return arr.filter(e=>e&&e.type&&e.ts).map(e=>({
         id:e.id||uuid(), type:e.type, side:e.side||null,
         ts:typeof e.ts==='number'?e.ts:new Date(e.ts).getTime(),
+        end:e.end?(typeof e.end==='number'?e.end:new Date(e.end).getTime()):null,
         updatedAt:e.updatedAt||Date.now(), deleted:!!e.deleted
       })).filter(e=>!isNaN(e.ts));
     }catch(err){ /* fall through to lines */ }
@@ -644,9 +681,9 @@ function parseImport(text){
   const out=[]; const now=new Date();
   for(let raw of text.split(/\n+/)){
     const line=raw.trim().toLowerCase(); if(!line) continue;
-    const m=line.match(/^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+(\d{1,2}:\d{2})\s*(am|pm)?\s+(feed|poop|pee|f|p|u)\b\s*([lr])?/i);
+    const m=line.match(/^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+(\d{1,2}:\d{2})\s*(am|pm)?\s+(feed|poop|pee|sleep|f|p|u|s)\b\s*([lr])?\s*(?:-|to)?\s*(\d{1,2}:\d{2})?\s*(am|pm)?/i);
     if(!m) continue;
-    let [,dstr,tstr,ap,type,side]=m;
+    let [,dstr,tstr,ap,type,side,etstr,eap]=m;
     let y,mo,da;
     if(dstr.includes('-')){ [y,mo,da]=dstr.split('-').map(Number); }
     else{ const parts=dstr.split('/').map(Number); mo=parts[0]; da=parts[1]; y=parts[2]?(parts[2]<100?2000+parts[2]:parts[2]):now.getFullYear(); }
@@ -654,8 +691,15 @@ function parseImport(text){
     if(ap==='pm'&&hh<12)hh+=12; if(ap==='am'&&hh===12)hh=0;
     const ts=new Date(y,mo-1,da,hh,mi).getTime();
     if(isNaN(ts)) continue;
-    type = type==='f'?'feed':(type==='p'?'poop':(type==='u'?'pee':type));
-    out.push({id:uuid(), type, side:side?side.toUpperCase():null, ts, updatedAt:Date.now(), deleted:false});
+    type = type==='f'?'feed':(type==='p'?'poop':(type==='u'?'pee':(type==='s'?'sleep':type)));
+    let end=null;
+    if(type==='sleep' && etstr){
+      let [eh,em]=etstr.split(':').map(Number);
+      if(eap==='pm'&&eh<12)eh+=12; if(eap==='am'&&eh===12)eh=0;
+      end=new Date(y,mo-1,da,eh,em).getTime();
+      if(end<=ts) end+=24*3600*1000; // overnight sleep rolls into the next day
+    }
+    out.push({id:uuid(), type, side:side?side.toUpperCase():null, ts, end, updatedAt:Date.now(), deleted:false});
   }
   return out;
 }
@@ -712,6 +756,18 @@ $('btnPee').onclick=e=>{
   const ev=addEvent('pee');
   toast('Logged pee at '+fmtTime(ev.ts), ()=>{ updateEvent(ev.id,{deleted:true}); toast('Undone'); });
 };
+$('btnSleep').onclick=e=>{
+  guard(e.currentTarget);
+  const as=activeSleep();
+  if(as){
+    const end=Date.now();
+    updateEvent(as.id,{end});
+    toast('Slept '+fmtDur(end-as.ts)+' — good job, little one', ()=>{ updateEvent(as.id,{end:null}); toast('Still sleeping'); });
+  }else{
+    const ev=addEvent('sleep');
+    toast('Sleep started at '+fmtTime(ev.ts), ()=>{ updateEvent(ev.id,{deleted:true}); toast('Undone'); });
+  }
+};
 
 /* feed sheet */
 let feedSide=null;
@@ -748,19 +804,28 @@ function openEdit(id){
   const ev=events.find(e=>e.id===id); if(!ev) return;
   editId=id; editType=ev.type; editSide=ev.side||'L';
   $('editTime').value=toLocalInput(ev.ts);
+  $('editEndTime').value = (ev.type==='sleep' && ev.end) ? toLocalInput(ev.end) : '';
   refreshEditSegs();
   openSheet('editSheet');
 }
 function refreshEditSegs(){
   $('editTypeSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('sel', b.dataset.type===editType));
   $('editSideField').style.display = editType==='feed' ? '' : 'none';
+  $('editEndField').style.display = editType==='sleep' ? '' : 'none';
+  $('editTimeLabel').textContent = editType==='sleep' ? 'Start time' : 'Time';
   $('editSideSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('sel', b.dataset.side===editSide));
 }
 $('editTypeSeg').querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ editType=b.dataset.type; refreshEditSegs(); }; });
 $('editSideSeg').querySelectorAll('button').forEach(b=>{ b.onclick=()=>{ editSide=b.dataset.side; refreshEditSegs(); }; });
 $('editCancel').onclick=closeSheets;
 $('editSave').onclick=()=>{
-  updateEvent(editId,{type:editType, side:editType==='feed'?editSide:null, ts:fromLocalInput($('editTime').value)});
+  const ts=fromLocalInput($('editTime').value);
+  let end=null;
+  if(editType==='sleep' && $('editEndTime').value){
+    end=fromLocalInput($('editEndTime').value);
+    if(end<=ts){ toast('End time must be after the start time'); return; }
+  }
+  updateEvent(editId,{type:editType, side:editType==='feed'?editSide:null, ts, end});
   closeSheets(); toast('Entry updated');
 };
 $('editDelete').onclick=()=>{
