@@ -386,8 +386,9 @@ function suggestedSide(){
 function activeSleep(){
   return alive().filter(e=>e.type==='sleep' && !e.end).sort((a,b)=>b.ts-a.ts)[0] || null;
 }
-function avgSleep(evts){ // average duration of completed sleeps in the given list
-  const done=evts.filter(e=>e.type==='sleep' && e.end);
+const MIN_SLEEP_MS = 45*60000; // stretches shorter than this are false starts and don't count toward averages
+function avgSleep(evts){ // average duration of completed sleeps of at least MIN_SLEEP_MS
+  const done=evts.filter(e=>e.type==='sleep' && e.end && (e.end-e.ts)>=MIN_SLEEP_MS);
   if(!done.length) return null;
   return done.reduce((s,e)=>s+(e.end-e.ts),0)/done.length;
 }
@@ -605,7 +606,7 @@ function renderSummary(){
   }
   html+='<div class="card" style="padding:10px 14px;"><table class="sum">'+
     '<tr><th>Day</th><th>🍼</th><th>😴 avg</th><th>💩</th><th>💧</th></tr>'+rows+'</table></div>'+
-    '<p class="sub" style="margin:12px 4px;">Tip: show this tab at pediatrician appointments.</p>';
+    '<p class="sub" style="margin:12px 4px;">Sleep averages count stretches of 45 min or more. Tip: show this tab at pediatrician appointments.</p>';
   page.innerHTML=html;
 }
 

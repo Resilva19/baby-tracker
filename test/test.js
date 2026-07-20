@@ -188,10 +188,10 @@ function ok(cond, name) {
   const imported = await A.evaluate(() => JSON.parse(localStorage.getItem('bt_events')).filter(e => e.type === 'sleep' && e.ts < new Date(2026, 6, 16).getTime() && !e.deleted));
   ok(imported.length === 3, 'three sleeps imported for Jul 15');
   ok(imported.some(e => e.end - e.ts === 2 * 3600e3), 'overnight sleep (11pm-1am) spans 2h into next day');
-  // avg for Jul 15: (60 + 30 + 120) / 3 = 70min = 1h 10m
+  // avg for Jul 15: the 30m false start is below the 45m threshold, so (60 + 120) / 2 = 90min = 1h 30m
   await A.click('.tab[data-page="summary"]');
   const sumTxt = await A.locator('#page-summary').textContent();
-  ok(sumTxt.includes('1h 10m'), 'daily summary shows 1h 10m average sleep for Jul 15');
+  ok(sumTxt.includes('1h 30m'), 'daily average excludes <45m false starts (1h 30m, not 1h 10m)');
   ok(sumTxt.includes('avg sleep'), 'last-24h card includes avg sleep stat');
   ok(!/\bL\b.*\bR\b/.test(await A.locator('#page-summary table.sum tr').first().textContent()), 'L/R columns removed from summary table');
 
